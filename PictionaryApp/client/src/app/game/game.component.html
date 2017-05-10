@@ -1,0 +1,32 @@
+<div class="container">
+  <div class="row">
+    <div class="col-9 drawing-area">
+      <canvas id="gameCanvas">
+      </canvas>
+    </div>
+    <div class="col-3 players">
+      <ul class="list-group" id="player-list">
+        <li class="list-group-item">Player 1</li>
+      </ul>
+    </div>
+  </div>
+  <form class="answer-box">
+    <div class="row">
+      <div class="col-9">
+        <div class="form-group">
+          <textarea readonly class="messages"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-9">
+        <div class="input-group">
+          <input type="text" class="form-control guess-input" placeholder="Guess...">
+          <span class="input-group-btn">
+            <button class="btn btn-secondary guess-btn" type="button">Submit</button>
+          </span>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
