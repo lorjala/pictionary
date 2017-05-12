@@ -9,6 +9,7 @@ import { LoginComponent } from './login/login.component';
 import { GameComponent } from './game/game.component';
 
 import { AuthService } from './auth/auth.service';
+import { PlayerService } from './game/players/player.service';
 
 @NgModule({
   declarations: [
@@ -22,7 +23,7 @@ import { AuthService } from './auth/auth.service';
     HttpModule,
     NgbModule.forRoot(),
   ],
-  providers: [AuthService],
+  providers: [AuthService, PlayerService],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

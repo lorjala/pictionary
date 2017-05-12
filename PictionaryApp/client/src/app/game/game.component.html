@@ -1,16 +1,39 @@
 <div class="container">
   <div class="row">
+    <div class="col-9 header-box">
+      <div *ngIf="drawingPlayer && drawingPlayer !== player">
+        {{drawingPlayer.username}} is drawing!
+      </div>
+      <div *ngIf="drawingPlayer === player">
+        You are drawing a _____.
+      </div>
+
+      <div>
+        asd
+      </div>
+    </div>
+    <div class="col-3 timer-box">
+      <div>
+        <span class="timer">30 s</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
     <div class="col-9 drawing-area">
-      <canvas id="gameCanvas">
-      </canvas>
+      <div>
+        <canvas #gameCanvas id="canvas" (mouseenter)="mouseEnterDrawingArea($event)" (mouseleave)="mouseLeaveDrawingArea($event)" (mousemove)="mouseMove($event)" (mousedown)="mouseDown($event)" (mouseup)="mouseUp($event)">
+        </canvas>
+      </div>
     </div>
     <div class="col-3 players">
       <ul class="list-group" id="player-list">
-        <li class="list-group-item">Player 1</li>
+        <li class="list-group-item" *ngFor="let player of players">{{player.username}}</li>
       </ul>
     </div>
   </div>
-  <form class="answer-box">
+
+  <form class="answer-box" *ngIf="drawingPlayer === player">
     <div class="row">
       <div class="col-9">
         <div class="form-group">
@@ -29,4 +52,21 @@
       </div>
     </div>
   </form>
+
+  <div class="drawing-tools" *ngIf="drawingPlayer !== player">
+    <div class="row">
+      <div class="col-9">
+        <div class="text-center">
+          <button class="btn color-picker" *ngFor="let color of colors" [ngClass]="color" (click)="changeColor(color)"></button>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-9">
+        <div class="text-center">
+          <button class="btn btn-secondary" (click)="clearCanvas()">Clear canvas</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
