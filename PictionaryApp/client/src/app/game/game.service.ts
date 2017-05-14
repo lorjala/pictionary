@@ -17,6 +17,12 @@ export class GameService {
 
   constructor(private http: Http) {
     this.socket = io(this.url);
+
+    this.socket.on('alive', (data: any) => {
+      if (this.player && data === this.player.username) {
+        this.socket.emit('alive', data);
+      }
+    })
   }
 
   disconnect() {
@@ -25,8 +31,8 @@ export class GameService {
   }
 
   logIn(username: string) {
+    console.log('asd');
     this.duplicate = false;
-    this.player = new Player(username);
 
     this.socket.on('player-join', (data: any) => {
       if (data === username) {

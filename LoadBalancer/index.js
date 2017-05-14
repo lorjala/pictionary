@@ -100,8 +100,6 @@ var server = http.createServer(function (req, res) {
         console.log('Proxy error!');
         proxyFailCallback(proxyIndex);
     });
-
-    proxies.push(proxy);
 });
 
 server.listen(PORT);

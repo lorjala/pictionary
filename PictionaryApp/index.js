@@ -21,11 +21,20 @@ const DRAWABLES = [
 ];
 
 var sockets = [];
+var timeouts = {};
 
 var rclient = redis.createClient();
 var pub = redis.createClient();
 var sub = redis.createClient();
 sub.subscribe('global');
+
+// Set players to false:
+rclient.smembers('players', (err, members) => {
+  members.forEach((member) => {
+    const m = JSON.parse(member);
+    m.logged = false;
+  });
+});
 
 app.get('/drawable', (req, res) => {
   var index = Math.floor(Math.random() * DRAWABLES.length);
@@ -55,6 +64,45 @@ sub.on('message', (channel, data) => {
   else sockets.forEach(socket => socket.emit(msg));
 });
 
+var checkedPlayers = false;
+
+var checkPlayers = function() {
+  rclient.smembers('players', (err, members) => {
+    const onlineMembers = members.filter(member => JSON.parse(member).logged);
+
+    onlineMembers.forEach((member) => {
+      const player = JSON.parse(member);
+
+      const msg2 = {
+        type: 'alive',
+        msg: player.player
+      };
+
+      const pData = {
+        player: player.player,
+        logged: true
+      };
+
+      timeouts[player.player] = setTimeout(() => {
+        console.log('Dead player. Log off.');
+        rclient.srem('players', JSON.stringify(pData));
+        pData.logged = false;
+        rclient.sadd('players', JSON.stringify(pData));
+
+        var msg3 = {
+          type: 'player-leave',
+          msg: player.player
+        };
+        pub.publish('global', JSON.stringify(msg3));
+      }, 10000);
+
+      pub.publish('global', JSON.stringify(msg2));
+    });
+
+    checkedPlayers = true;        
+  });
+};
+
 io.on('connection', (socket) => {
   sockets.push(socket);
 
@@ -73,11 +121,19 @@ io.on('connection', (socket) => {
       logged: true
     };
 
+    if (!checkedPlayers) {
+      checkPlayers();
+    }
+
     const promise = new Promise((resolve, reject) => {
       rclient.sismember('players', JSON.stringify(playerData), (err, belongs) => {
         if (belongs === 1) {
           console.log('already logged in.');
-          resolve();
+
+          socket.emit('player-exists');
+          checkPlayers();
+
+          reject();
         } else {
           playerData.logged = false;
           rclient.sismember('players', JSON.stringify(playerData), (err, belongs) => {
@@ -130,7 +186,20 @@ io.on('connection', (socket) => {
           pub.publish('global', JSON.stringify(msg));
         }
       });
+    })
+    .catch(() => {
+      console.log('Cannot login.');
     });
+  });
+
+  socket.on('alive', (data) => {
+    const timer = timeouts[data];
+
+    if (timer) {
+      console.log(data + ' is alive');
+      clearTimeout(timer);
+      delete timeouts[data];
+    }
   });
 
   socket.on('guess', (data) => {

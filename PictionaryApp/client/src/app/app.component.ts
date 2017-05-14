@@ -10,6 +10,4 @@ import { GameService } from './game/game.service';
 export class AppComponent {
 
   constructor(private gameService: GameService) {}
-
-
 }
