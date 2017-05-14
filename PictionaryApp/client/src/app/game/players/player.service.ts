@@ -16,13 +16,25 @@ export class PlayerService {
   }
   getPlayers() {
     return new Observable((observer) => {
-      this.socket.on('player', (data: any) => {
-        observer.next(data);
+      this.socket.on('player-join', (data: any) => {
+        const joinObj = {
+          join: true,
+          data
+        };
+
+        observer.next(joinObj);
       });
 
-      this.socket.emit('get-players', {
+      this.socket.on('player-leave', (data: any) => {
+        const leaveObj = {
+          leave: true,
+          data
+        };
 
+        observer.next(leaveObj);
       });
+
+      this.socket.emit('get-players', {});
     });
   }
 }

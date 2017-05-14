@@ -1,6 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 
-import { AuthService } from './../auth/auth.service';
+import { GameService } from './../game/game.service';
 
 @Component({
   selector: 'app-login',
@@ -11,9 +11,14 @@ export class LoginComponent {
   username: string = '';
   password: string = '';
 
-  constructor(private authService: AuthService) {}
+  constructor(private gameService: GameService) {}
 
   login() {
-    this.authService.logIn(this.username, this.password);
+    this.gameService.logIn(this.username);
+  }
+
+  @HostListener('window:beforeunload')
+  removePlayer() {
+    this.gameService.leave(this.gameService.player);
   }
 }

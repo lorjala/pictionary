@@ -1,26 +1,30 @@
 <div class="container">
   <div class="row">
     <div class="col-9 header-box">
-      <div *ngIf="drawingPlayer && drawingPlayer !== player">
-        {{drawingPlayer.username}} is drawing!
+      <div *ngIf="drawingPlayer && drawingPlayer !== player.username">
+        {{drawingPlayer}} is drawing!
       </div>
-      <div *ngIf="drawingPlayer === player">
-        You are drawing a _____.
+      <div *ngIf="drawingPlayer && drawingPlayer === player.username">
+        <span *ngIf="drawableIsVowel()">You are drawing an {{drawable}}.</span>
+        <span *ngIf="!drawableIsVowel()">You are drawing a {{drawable}}.</span>
       </div>
 
-      <div>
-        asd
+      <div *ngIf="!drawingPlayer">
+        Pictionary
       </div>
     </div>
     <div class="col-3 timer-box">
       <div>
-        <span class="timer">30 s</span>
+        <span class="timer"></span>
       </div>
     </div>
   </div>
 
   <div class="row">
-    <div class="col-9 drawing-area">
+    <div class="col-9 drawing-area" >
+      <div *ngIf="players.length < 2">
+        Waiting for more players...
+      </div>
       <div>
         <canvas #gameCanvas id="canvas" (mouseenter)="mouseEnterDrawingArea($event)" (mouseleave)="mouseLeaveDrawingArea($event)" (mousemove)="mouseMove($event)" (mousedown)="mouseDown($event)" (mouseup)="mouseUp($event)">
         </canvas>
@@ -33,27 +37,7 @@
     </div>
   </div>
 
-  <form class="answer-box" *ngIf="drawingPlayer === player">
-    <div class="row">
-      <div class="col-9">
-        <div class="form-group">
-          <textarea readonly class="messages"></textarea>
-        </div>
-      </div>
-    </div>
-    <div class="row">
-      <div class="col-9">
-        <div class="input-group">
-          <input type="text" class="form-control guess-input" placeholder="Guess...">
-          <span class="input-group-btn">
-            <button class="btn btn-secondary guess-btn" type="button">Submit</button>
-          </span>
-        </div>
-      </div>
-    </div>
-  </form>
-
-  <div class="drawing-tools" *ngIf="drawingPlayer !== player">
+  <div class="drawing-tools" *ngIf="drawingPlayer === player.username">
     <div class="row">
       <div class="col-9">
         <div class="text-center">
@@ -69,4 +53,24 @@
       </div>
     </div>
   </div>
+
+  <form class="answer-box">
+    <div class="row">
+      <div class="col-9">
+        <div class="form-group">
+          <textarea #messages readonly class="messages"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="row" *ngIf="drawingPlayer !== player.username">
+      <div class="col-9">
+        <div class="input-group">
+          <input type="text" class="form-control guess-input" placeholder="Guess..." [(ngModel)]="guessValue" name="guessValue">
+          <span class="input-group-btn">
+            <button class="btn btn-secondary guess-btn" type="button" (click)="guess()">Submit</button>
+          </span>
+        </div>
+      </div>
+    </div>
+  </form>
 </div>

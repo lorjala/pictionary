@@ -6,12 +6,14 @@
         <label for="username">Username:</label>
         <input [(ngModel)]="username" class="form-control" type="text" name="username">
       </div>
+      <!--
       <div class="form-group">
         <label for="password">Password:</label>
         <input [(ngModel)]="password" class="form-control" type="password" name="password">
       </div>
-      <button type="button" class="btn btn-primary register-button">Register</button>
-      <button type="submit" class="btn btn-primary login-button">Login</button>
+      <button type="button" class="btn btn-primary register-button">Register</button> -->
+      <button type="submit" class="btn btn-primary login-button">Join</button>
+      <label *ngIf="gameService.duplicate">Username exists already!</label>
     </form>
   </div>
 </div>

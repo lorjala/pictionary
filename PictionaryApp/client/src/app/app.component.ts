@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 
-import { AuthService } from './auth/auth.service';
+import { GameService } from './game/game.service';
 
 @Component({
   selector: 'app-root',
@@ -8,7 +8,8 @@ import { AuthService } from './auth/auth.service';
   styleUrls: ['./app.component.css']
 })
 export class AppComponent {
-  constructor(private authService: AuthService) {}
+
+  constructor(private gameService: GameService) {}
 
 
 }

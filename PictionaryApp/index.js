@@ -1,12 +1,39 @@
 var http = require('http');
-var ws = require('ws');
+var IO = require('socket.io');
 var express = require('express');
+var redis = require('redis');
 
 var PORT = process.env.PORT || 8000;
 
 var app = express();
 
 app.use(express.static('client/dist'));
+
+const DRAWABLES = [
+  'cat',
+  'dog',
+  'palmtree',
+  'car',
+  'house',
+  'airplane',
+  'sunflower',
+  'eagle',
+];
+
+var sockets = [];
+
+var rclient = redis.createClient();
+var pub = redis.createClient();
+var sub = redis.createClient();
+sub.subscribe('global');
+
+app.get('/drawable', (req, res) => {
+  var index = Math.floor(Math.random() * DRAWABLES.length);
+
+  rclient.set('drawable', DRAWABLES[index]);
+
+  res.status(200).json({ drawable: DRAWABLES[index] });
+});
 
 app.use(function (req, res) {
   res.status(404).json({
@@ -17,10 +44,255 @@ app.use(function (req, res) {
 
 var server = http.createServer(app);
 
-var wss = new ws.Server({ server });
+var io = IO(server);
 
-wss.on('connection', function (ws) {
+sub.on('message', (channel, data) => {
+  var data = JSON.parse(data);
+  var type = data.type;
+  var msg = data.msg;
 
+  if (type) sockets.forEach(socket => socket.emit(type, msg));
+  else sockets.forEach(socket => socket.emit(msg));
+});
+
+io.on('connection', (socket) => {
+  sockets.push(socket);
+
+  console.log('user connected to the server');
+
+  socket.on('player-join', (data) => {
+    console.log('join');
+
+    var msg = {
+      type: 'player-join',
+      msg: data
+    };
+
+    var playerData = {
+      player: data,
+      logged: true
+    };
+
+    const promise = new Promise((resolve, reject) => {
+      rclient.sismember('players', JSON.stringify(playerData), (err, belongs) => {
+        if (belongs === 1) {
+          console.log('already logged in.');
+          resolve();
+        } else {
+          playerData.logged = false;
+          rclient.sismember('players', JSON.stringify(playerData), (err, belongs) => {
+            if (belongs === 1) {
+              console.log('user found but not logged in.');
+              rclient.srem('players', JSON.stringify(playerData));
+              playerData.logged = true;
+              rclient.sadd('players', JSON.stringify(playerData), () => {
+                resolve();
+              });
+              pub.publish('global', JSON.stringify(msg));
+            } else {
+              playerData.logged = true;
+              rclient.sadd('players', JSON.stringify(playerData), () => {
+                resolve();
+              });
+              pub.publish('global', JSON.stringify(msg));
+            }
+          });
+        }
+      });
+    });
+
+    promise.then(() => {
+      // If two or more players set drawer:
+      rclient.smembers('players', (err, members) => {
+        const onlineMembers = members.filter(member => JSON.parse(member).logged);
+
+        if (onlineMembers.length > 1) {
+          rclient.get('drawer', (err, value) => {
+            console.log(value);
+            if (value === null) {
+              const player = JSON.parse(onlineMembers[0]);
+              rclient.set('drawer', player.player);
+              const msg = {
+                type: 'drawing-player',
+                msg: player.player
+              }
+              pub.publish('global', JSON.stringify(msg));
+            } else {
+              socket.emit('drawing-player', value);
+            }
+          })
+        } else {
+          console.log('No enough players.');
+          rclient.del('drawer');
+          const msg = {
+              type: 'drawing-player'
+            };
+          pub.publish('global', JSON.stringify(msg));
+        }
+      });
+    });
+  });
+
+  socket.on('guess', (data) => {
+    console.log('New Guess!');
+    console.log(data);
+
+    rclient.get('drawable', (err, value) => {
+      if (value && value === data.value) {
+        // Guess was correct
+        const msg = {
+          type: 'guess-message',
+          msg: data.player + ' guessed right! The answer was ' + value + '.'
+        }
+
+        pub.publish('global', JSON.stringify(msg));
+
+        // Select new drawer:
+        rclient.smembers('players', (err, members) => {
+          const onlineMembers = members.filter(member => JSON.parse(member).logged);
+
+          if (onlineMembers.length > 1) {
+            // At least two players
+            rclient.get('drawer', (err, value) => {
+              console.log('Previous drawer: ' + value);
+
+              let drawer;
+
+              if (value === null) {
+                drawer = JSON.parse(onlineMembers[0]);
+              } else {
+                const oldDrawer = onlineMembers.find(m => JSON.parse(m).player === value);
+                const index = onlineMembers.indexOf(oldDrawer);
+
+                drawer = (index < onlineMembers.length - 1) ? JSON.parse(onlineMembers[index+1]) : JSON.parse(onlineMembers[0]);
+
+              }
+              rclient.set('drawer', drawer.player);
+              const msg = {
+                type: 'drawing-player',
+                msg: drawer.player
+              }
+              pub.publish('global', JSON.stringify(msg));
+            })
+          } else {
+            console.log('No enough players.');
+            rclient.del('drawer');
+            const msg = {
+              type: 'drawing-player'
+            };
+            pub.publish('global', JSON.stringify(msg));
+          }
+        });
+      } else if (value && value !== data.value) {
+        // Guess was not correct.
+        const msg = {
+          type: 'guess-message',
+          msg: data.player + ' guessed ' + data.value + '.'
+        }
+
+        pub.publish('global', JSON.stringify(msg));
+
+      } else {
+        // No drawable found. Terminate.
+        console.log('Should not happen!');
+      }
+    });
+  });
+
+  socket.on('player-leave', (data) => {
+    console.log('Bye ' + data + '!');
+    var msg = {
+      type: 'player-leave',
+      msg: data
+    };
+
+    var playerData = {
+      player: data,
+      logged: true
+    };
+
+    rclient.smembers('players', (err, members) => {
+      const onlineMembers = members.filter(member => JSON.parse(member).logged);
+
+      if (onlineMembers.length > 2) {
+        // At least two players + leaving player.
+
+        rclient.get('drawer', (err, value) => {
+          if (value == data) {
+            // Drawer is leaving player.
+
+            const leavingPlayer = onlineMembers.find(m => JSON.parse(m).player === data);
+            const index = onlineMembers.indexOf(leavingPlayer);
+
+            console.log('Leaving player index: ' + index);
+
+            const newDrawer = (index < onlineMembers.length - 1) ? JSON.parse(onlineMembers[index+1]) : JSON.parse(onlineMembers[0]);
+
+            rclient.set('drawer', newDrawer.player);
+
+            const msg2 = {
+              type: 'drawing-player',
+              msg: newDrawer.player
+            };
+
+            pub.publish('global', JSON.stringify(msg2));
+          } else {
+            // Drawer is not leaving player.
+          }
+
+          rclient.srem('players', JSON.stringify(playerData));
+          playerData.logged = false;
+          rclient.sadd('players', JSON.stringify(playerData));
+
+          pub.publish('global', JSON.stringify(msg));
+        });
+        
+      } else {
+        // Only two players.
+        console.log('No enough players.');
+        const msg2 = {
+          type: 'drawing-player'
+        };
+        pub.publish('global', JSON.stringify(msg2));
+
+        rclient.srem('players', JSON.stringify(playerData));
+        playerData.logged = false;
+        rclient.sadd('players', JSON.stringify(playerData));
+
+        pub.publish('global', JSON.stringify(msg));
+      }
+    });
+  });
+
+  socket.on('get-players', () => {
+    rclient.smembers('players', (err, members) => {
+      members.forEach((member) => {
+        const playerData = JSON.parse(member);
+
+        console.log(playerData);
+
+        if (playerData.logged) {
+          socket.emit('player-join', playerData.player);
+        }
+      });
+    });
+  });
+
+  socket.on('strokes', (data) => {
+
+    const msg = {
+      type: 'strokes',
+      msg: data
+    };
+
+    pub.publish('global', JSON.stringify(msg));
+  });
+
+  socket.on('disconnect', () => {
+    var index = sockets.indexOf(socket);
+
+    if (index >= 0) sockets.splice(index, 1);
+  });
 });
 
 server.listen(PORT);
