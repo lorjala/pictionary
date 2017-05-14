@@ -4,6 +4,8 @@ var express = require('express');
 var redis = require('redis');
 
 var PORT = process.env.PORT || 8000;
+var REDIS_HOST = process.env.REDIS_HOST || 'localhost';
+var REDIS_PORT = process.env.REDIS_PORT || 6379;
 
 var app = express();
 
@@ -23,9 +25,18 @@ const DRAWABLES = [
 var sockets = [];
 var timeouts = {};
 
-var rclient = redis.createClient();
-var pub = redis.createClient();
-var sub = redis.createClient();
+var rclient = redis.createClient({
+  host: REDIS_HOST,
+  port: REDIS_PORT
+});
+var pub = redis.createClient({
+  host: REDIS_HOST,
+  port: REDIS_PORT
+});
+var sub = redis.createClient({
+  host: REDIS_HOST,
+  port: REDIS_PORT
+});
 sub.subscribe('global');
 
 // Set players to false:

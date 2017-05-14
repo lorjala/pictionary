@@ -4,10 +4,21 @@ var request = require('request');
 
 var PORT = process.env.PORT || 8000;
 
+/**
+ *
+ * Configure servers here
+ *
+ */
 var servers = [
     {host: 'localhost', port: 8001},
     {host: 'localhost', port: 8002}
 ];
+
+
+/**
+	DO NOT TOUCH ANYWHERE UNDER HERE
+*/
+
 
 var proxies = servers.map(function (server) {
     return new httpProxy.createProxyServer({
